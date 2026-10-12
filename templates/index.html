@@ -1,0 +1,110 @@
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>Excel Insight</title>
+    <style>
+        table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 15px;
+    font-size: 14px;
+    }
+
+    th, td {
+    border: 1px solid #ddd;
+    padding: 10px;
+    text-align: left;
+    white-space: nowrap;
+    }
+
+    th {
+    background-color: #f3f4f6;
+    }
+
+    tr:nth-child(even) {
+    background-color: #fafafa;
+    }
+        body {
+            font-family: Arial, sans-serif;
+            background: #f5f6fa;
+            padding: 50px;
+        }
+        .container {
+            max-width: 600px;
+            margin: auto;
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+        }
+        button {
+            padding: 10px 20px;
+            cursor: pointer;
+        }
+        .success { color: green; }
+        .error { color: red; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Excel Insight</h1>
+        <p>销售数据分析平台</p>
+
+        <form method="POST"
+              enctype="multipart/form-data">
+
+            <input type="file"
+                   name="file"
+                   accept=".xlsx"
+                   required>
+
+            <button type="submit">上传并分析</button>
+        </form>
+
+        {% if error %}
+            <p class="error">上传失败：{{ error }}</p>
+        {% endif %}
+
+        
+{% if result %}
+    <div class="success">
+        <h2>分析成功！</h2>
+        <p>订单数量：{{ result.orders }}</p>
+        <p>总销售额：{{ "%.2f"|format(result.total_sales) }} 元</p>
+    </div>
+
+    <h3>销售数据预览（前5行）</h3>
+
+    <div style="overflow-x: auto;">
+        <table>
+            <thead>
+                <tr>
+                    <th>订单编号</th>
+                    <th>订单日期</th>
+                    <th>商品</th>
+                    <th>数量</th>
+                    <th>单价</th>
+                    <th>销售额</th>
+                </tr>
+            </thead>
+
+            <tbody>
+                {% for row in result.preview %}
+                <tr>
+                    <td>{{ row["order_id"] }}</td>
+                    <td>{{ row["order_date"] }}</td>
+                    <td>{{ row["product"] }}</td>
+                    <td>{{ row["quantity"] }}</td>
+                    <td>{{ row["unit_price"] }}</td>
+                    <td>{{ row["sales_amount"] }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+{% endif %}
+
+    </div>
+</body>
+</html>
