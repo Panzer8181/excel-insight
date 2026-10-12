@@ -1,11 +1,40 @@
 
 from flask import Flask, render_template, request
 from data_processor import load_sales_data
+import zipfile
 
 app = Flask(__name__)
 
 # 限制上传请求最大为5MB
 app.config["MAX_CONTENT_LENGTH"] = 5 * 1024 * 1024
+
+
+def is_valid_xlsx_structure(file_stream):
+    try:
+        file_stream.seek(0)
+
+        # 第一层：是不是ZIP文件
+        if not zipfile.is_zipfile(file_stream):
+            return False
+
+        file_stream.seek(0)
+
+        # 第二层：检查Excel必需的内部结构
+        with zipfile.ZipFile(file_stream) as z:
+            file_names = set(z.namelist())
+
+            required_files = {
+                "[Content_Types].xml",
+                "xl/workbook.xml"
+            }
+
+            return required_files.issubset(file_names)
+
+    except (OSError, zipfile.BadZipFile):
+        return False
+
+    finally:
+        file_stream.seek(0)
 
 
 @app.route("/", methods=["GET", "POST"])
@@ -22,7 +51,12 @@ def index():
         elif not file.filename.lower().endswith(".xlsx"):
             error = "目前只支持.xlsx格式"
 
+        elif not is_valid_xlsx_structure(file.stream):
+            error = "文件内容不是有效的Excel"
+
         else:
+            file.stream.seek(0)
+
             try:
                 # 复用之前写好的数据读取与校验函数
                 df = load_sales_data(file)
@@ -64,6 +98,15 @@ def index():
         result=result,
         error=error
     )
+
+
+@app.errorhandler(413)
+def handle_large_file(error):
+    return render_template(
+        "index.html",
+        result=None,
+        error="文件大小不能超过5MB"
+    ), 413
 
 
 if __name__ == "__main__":

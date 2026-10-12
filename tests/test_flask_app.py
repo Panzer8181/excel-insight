@@ -1,7 +1,7 @@
 
 import io
 import pandas as pd
-
+import zipfile
 from app import app
 
 
@@ -74,24 +74,47 @@ def test_average_order_sales_is_displayed():
     assert "平均每单销售额：2366.67 元" in html
 
 
-def test_average_order_sales_is_zero_when_there_are_no_orders(monkeypatch):
-    empty_data = pd.DataFrame(
-        columns=["order_id", "order_date", "product", "quantity", "unit_price"]
-    )
-    monkeypatch.setattr("app.load_sales_data", lambda _file: empty_data)
 
+def test_average_order_sales_is_zero_when_there_are_no_orders(monkeypatch):
+    # 1. 准备一个空DataFrame，模拟0条订单
+    empty_data = pd.DataFrame(
+        columns=[
+            "order_id",
+            "order_date",
+            "product",
+            "quantity",
+            "unit_price"
+        ]
+    )
+
+    # 2. 创建一个真正的XLSX文件
+    excel_file = io.BytesIO()
+    empty_data.to_excel(excel_file, index=False)
+    excel_file.seek(0)
+
+    # 3. 模拟数据处理函数返回0条订单
+    monkeypatch.setattr(
+        "app.load_sales_data",
+        lambda _file: empty_data
+    )
+
+    # 4. 模拟浏览器上传
     with app.test_client() as client:
         response = client.post(
             "/",
-            data={"file": (io.BytesIO(b""), "sales.xlsx")},
+            data={
+                "file": (excel_file, "sales.xlsx")
+            },
             content_type="multipart/form-data"
         )
 
+    # 5. 检查零订单情况下的计算结果
     html = response.get_data(as_text=True)
 
     assert response.status_code == 200
     assert "订单数量：0" in html
     assert "平均每单销售额：0.00 元" in html
+
 
 def test_upload_missing_column():
     # 1. 故意创建缺少 unit_price 的数据
@@ -165,3 +188,83 @@ def test_upload_empty_excel():
     assert response.status_code == 200
     assert "上传失败" in html
     assert "Excel文件没有数据" in html
+
+def test_upload_large_file():
+    # 模拟一个6MB的文件
+    large_file = io.BytesIO(
+        b"x" * (6 * 1024 * 1024)
+    )
+
+    with app.test_client() as client:
+        response = client.post(
+            "/",
+            data={
+                "file": (large_file, "large.xlsx")
+            },
+            content_type="multipart/form-data"
+        )
+
+    assert response.status_code == 413
+
+    html = response.get_data(as_text=True)
+
+    assert "文件大小不能超过5MB" in html
+
+
+def test_fake_excel_file():
+    # 1. 创建一个假的Excel文件
+    fake_file = io.BytesIO(
+        b"This is not a real Excel file"
+    )
+
+    # 2. 假装用户上传了一个.xlsx文件
+    with app.test_client() as client:
+        response = client.post(
+            "/",
+            data={
+                "file": (fake_file, "fake.xlsx")
+            },
+            content_type="multipart/form-data"
+        )
+
+    # 3. 获取网页返回内容
+    html = response.get_data(as_text=True)
+
+    # 4. 验证错误处理
+    assert response.status_code == 200
+    assert "上传失败" in html
+    assert "文件内容不是有效的Excel" in html
+    assert "分析成功" not in html
+
+
+def test_fake_zip_as_excel():
+    # 1. 创建一个真实的ZIP文件
+    fake_excel = io.BytesIO()
+
+    with zipfile.ZipFile(fake_excel, "w") as z:
+        z.writestr("hello.txt", "This is not Excel")
+
+    fake_excel.seek(0)
+
+    # 2. 验证它确实是ZIP
+    assert zipfile.is_zipfile(fake_excel)
+
+    fake_excel.seek(0)
+
+    # 3. 把ZIP伪装成XLSX上传
+    with app.test_client() as client:
+        response = client.post(
+            "/",
+            data={
+                "file": (fake_excel, "fake.xlsx")
+            },
+            content_type="multipart/form-data"
+        )
+
+    # 4. 检查网站返回结果
+    html = response.get_data(as_text=True)
+
+    assert response.status_code == 200
+    assert "上传失败" in html
+    assert "文件内容不是有效的Excel" in html
+    assert "分析成功" not in html
