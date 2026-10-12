@@ -72,6 +72,7 @@
         <h2>分析成功！</h2>
         <p>订单数量：{{ result.orders }}</p>
         <p>总销售额：{{ "%.2f"|format(result.total_sales) }} 元</p>
+        <p>平均每单销售额：{{ "%.2f"|format(result.average_order_sales) }} 元</p>
     </div>
 
     <h3>销售数据预览（前5行）</h3>

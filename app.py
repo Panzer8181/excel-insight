@@ -32,9 +32,17 @@ def index():
                     df["quantity"] * df["unit_price"]
                 )
 
+                orders = len(df)
+                total_sales = float(df["sales_amount"].sum())
+
                 result = {
-                    "orders": len(df),
-                    "total_sales": float(df["sales_amount"].sum()),
+                    "orders": orders,
+                    "total_sales": total_sales,
+                    "average_order_sales": (
+                        round(total_sales / orders, 2)
+                        if orders
+                        else 0.0
+                    ),
                     "preview": df.head(5).to_dict(orient="records")
                 }
 
