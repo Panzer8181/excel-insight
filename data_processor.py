@@ -1,5 +1,6 @@
 import pandas as pd
 import logging
+from field_mapper import map_fields
 
 logging.basicConfig(
     filename="logs/app.log",
@@ -29,10 +30,21 @@ def load_sales_data(file_path):
     if df.empty:
         raise DataValidationError("Excel文件没有数据")
 
-    missing_columns = [
-        col for col in REQUIRED_COLUMNS
-        if col not in df.columns
-    ]
+    field_mapping = map_fields(df.columns)
+    if isinstance(field_mapping, list):
+        missing_columns = field_mapping.copy()
+        missing_columns.extend(
+            col for col in ("order_date", "product")
+            if col not in df.columns
+        )
+    else:
+        df = df.rename(
+            columns={source: standard for standard, source in field_mapping.items()}
+        )
+        missing_columns = [
+            col for col in REQUIRED_COLUMNS
+            if col not in df.columns
+        ]
 
     if missing_columns:
         logger.error(
