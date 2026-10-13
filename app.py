@@ -1,6 +1,6 @@
 
 from flask import Flask, render_template, request
-from data_processor import load_sales_data
+from data_processor import DataValidationError, load_sales_data
 import zipfile
 
 app = Flask(__name__)
@@ -51,39 +51,39 @@ def index():
         elif not file.filename.lower().endswith(".xlsx"):
             error = "目前只支持.xlsx格式"
 
-        elif not is_valid_xlsx_structure(file.stream):
-            error = "文件内容不是有效的Excel"
-
         else:
-            file.stream.seek(0)
-
             try:
-                # 复用之前写好的数据读取与校验函数
-                df = load_sales_data(file)
+                if not is_valid_xlsx_structure(file.stream):
+                    error = "文件内容不是有效的Excel"
+                else:
+                    file.stream.seek(0)
 
-                # 计算销售额
-                df["sales_amount"] = (
-                    df["quantity"] * df["unit_price"]
-                )
+                    # 复用之前写好的数据读取与校验函数
+                    df = load_sales_data(file)
 
-                orders = len(df)
-                total_sales = float(df["sales_amount"].sum())
+                    # 计算销售额
+                    df["sales_amount"] = (
+                        df["quantity"] * df["unit_price"]
+                    )
 
-                result = {
-                    "orders": orders,
-                    "total_sales": total_sales,
-                    "average_order_sales": (
-                        round(total_sales / orders, 2)
-                        if orders
-                        else 0.0
-                    ),
-                    "preview": df.head(5).to_dict(orient="records")
-                }
+                    orders = len(df)
+                    total_sales = float(df["sales_amount"].sum())
 
-            except ValueError as e:
+                    result = {
+                        "orders": orders,
+                        "total_sales": total_sales,
+                        "average_order_sales": (
+                            round(total_sales / orders, 2)
+                            if orders
+                            else 0.0
+                        ),
+                        "preview": df.head(5).to_dict(orient="records")
+                    }
+
+            except DataValidationError as e:
                 detail = e.args[0]
 
-                # 兼容之前的结构化错误和普通错误
+                # 兼容结构化校验错误和普通校验提示
                 if isinstance(detail, dict):
                     error = detail.get("message", "数据校验失败")
                 else:

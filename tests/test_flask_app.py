@@ -268,3 +268,42 @@ def test_fake_zip_as_excel():
     assert "上传失败" in html
     assert "文件内容不是有效的Excel" in html
     assert "分析成功" not in html
+
+
+def test_internal_error_not_exposed(monkeypatch):
+    # 1. 模拟数据处理函数出现内部异常
+    def fake_loader(file):
+        raise ValueError("内部路径: C:/private/data.xlsx")
+
+    monkeypatch.setattr(
+        "app.load_sales_data",
+        fake_loader
+    )
+
+    # 2. 创建真正的XLSX文件，让它通过文件结构检查
+    excel_file = io.BytesIO()
+
+    pd.DataFrame({"test": [1]}).to_excel(
+        excel_file,
+        index=False
+    )
+
+    excel_file.seek(0)
+
+    # 3. 模拟用户上传
+    with app.test_client() as client:
+        response = client.post(
+            "/",
+            data={
+                "file": (excel_file, "test.xlsx")
+            },
+            content_type="multipart/form-data"
+        )
+
+    html = response.get_data(as_text=True)
+
+    # 4. 不应该把内部路径展示给用户
+    assert "C:/private/data.xlsx" not in html
+
+    # 5. 应该返回通用错误提示
+    assert "文件无法处理，请确认Excel格式正确" in html
