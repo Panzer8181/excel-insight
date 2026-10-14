@@ -63,7 +63,7 @@
 python -m pytest -q -p no:cacheprovider --basetemp "$env:TEMP\excel-insight-pytest-v1"
 ```
 
-结果：**42 passed，0 failed，0 errors**（5.08 秒）；`python -m compileall -q app.py data_processor.py field_mapper.py data_quality.py business_insight.py order_metrics.py visualization.py report_export.py create_test_data.py` 通过；`git diff --check` 通过。
+结果：**42 passed，0 failed，0 errors**（4.97 秒）；`python -m compileall -q app.py data_processor.py field_mapper.py data_quality.py business_insight.py order_metrics.py visualization.py report_export.py create_test_data.py` 通过；`git diff --check` 通过。
 
 当前托管执行环境的默认 pytest 临时目录和项目 `.pytest_cache` 写入受限，因此在项目外的可写临时目录运行，并关闭 pytest 缓存插件。最初不带临时目录参数的运行出现 5 个 fixture 初始化权限错误；另外暴露了 2 个真实图表问题。使用可写临时目录并完成图表、报告和订单统计修复后，完整的 42 项测试全部通过。
 
