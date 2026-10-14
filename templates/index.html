@@ -5,38 +5,18 @@
     <meta charset="UTF-8">
     <title>Excel Insight</title>
     <style>
-        table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-top: 15px;
-    font-size: 14px;
-    }
-
-    th, td {
-    border: 1px solid #ddd;
-    padding: 10px;
-    text-align: left;
-    white-space: nowrap;
-    }
-
-    th {
-    background-color: #f3f4f6;
-    }
-
-    tr:nth-child(even) {
-    background-color: #fafafa;
-    }
         body {
             font-family: Arial, sans-serif;
             background: #f5f6fa;
             padding: 50px;
         }
         .container {
-            max-width: 600px;
+            max-width: 1100px;
             margin: auto;
             background: white;
             padding: 30px;
             border-radius: 12px;
+            box-shadow: 0 4px 18px rgba(15, 23, 42, 0.06);
         }
         button {
             padding: 10px 20px;
@@ -44,6 +24,90 @@
         }
         .success { color: green; }
         .error { color: red; }
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 16px;
+            margin: 20px 0 28px;
+        }
+        .kpi-card, .chart-card {
+            border: 1px solid #e5e7eb;
+            border-radius: 10px;
+            background: #fff;
+        }
+        .kpi-card { padding: 18px; color: #1f2937; }
+        .kpi-label { color: #6b7280; font-size: 14px; }
+        .kpi-value { margin: 8px 0 0; font-size: 24px; font-weight: 700; }
+        .kpi-legacy-label { margin: 5px 0 0; color: #6b7280; font-size: 12px; }
+        .kpi-note { margin: 6px 0 0; color: #6b7280; font-size: 12px; }
+        .report-download {
+            display: inline-block;
+            margin: 4px 0 8px;
+            padding: 10px 18px;
+            border-radius: 6px;
+            background: #2563eb;
+            color: #fff;
+            font-weight: 600;
+            text-decoration: none;
+        }
+        .report-download:hover { background: #1d4ed8; }
+        .insight-section { margin: 28px 0; }
+        .insight-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 12px;
+        }
+        .insight-card {
+            border: 1px solid #e5e7eb;
+            border-radius: 10px;
+            padding: 16px 18px;
+            background: #fbfcff;
+            color: #1f2937;
+        }
+        .insight-card h3 { margin: 0 0 12px; font-size: 17px; }
+        .insight-card ul { margin: 0; padding-left: 20px; line-height: 1.6; }
+        .insight-empty { color: #6b7280; }
+        .quality-section { margin: 28px 0; }
+        .quality-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 12px;
+        }
+        .quality-card {
+            border: 1px solid #e5e7eb;
+            border-radius: 10px;
+            padding: 15px 18px;
+            background: #fbfcff;
+        }
+        .quality-value { margin-top: 7px; color: #1f2937; font-size: 20px; font-weight: 700; }
+        .chart-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 16px;
+            margin-bottom: 28px;
+        }
+        .chart-card { min-width: 0; padding: 8px; }
+        .chart-card.wide { grid-column: 1 / -1; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+            font-size: 14px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 10px;
+            text-align: left;
+            white-space: nowrap;
+        }
+        th { background-color: #f3f4f6; }
+        tr:nth-child(even) { background-color: #fafafa; }
+        @media (max-width: 700px) {
+            body { padding: 16px; }
+            .container { padding: 20px; }
+            .kpi-grid, .insight-grid, .quality-grid, .chart-grid { grid-template-columns: 1fr; }
+            .chart-card.wide { grid-column: auto; }
+        }
     </style>
 </head>
 <body>
@@ -70,10 +134,101 @@
 {% if result %}
     <div class="success">
         <h2>分析成功！</h2>
-        <p>订单数量：{{ result.orders }}</p>
-        <p>总销售额：{{ "%.2f"|format(result.total_sales) }} 元</p>
-        <p>平均每单销售额：{{ "%.2f"|format(result.average_order_sales) }} 元</p>
     </div>
+    <a class="report-download"
+       href="{{ url_for('download_report', report_id=result.report_id) }}">下载 Word 分析报告</a>
+
+    <section class="kpi-grid" aria-label="销售指标">
+        <div class="kpi-card">
+            <div class="kpi-value">订单数量：{{ result.orders }}</div>
+            <p class="kpi-note">按非空订单编号去重；空编号 {{ result.empty_order_ids }} 行不计入订单数</p>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-label">总销售额</div>
+            <div class="kpi-value">{{ "%.2f"|format(result.total_sales) }} 元</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-label">平均订单金额</div>
+            <div class="kpi-value">{{ "%.2f"|format(result.average_order_sales) }} 元</div>
+            <p class="kpi-legacy-label">平均每单销售额：{{ "%.2f"|format(result.average_order_sales) }} 元</p>
+        </div>
+    </section>
+
+    <section class="insight-section" aria-label="业务洞察">
+        <h2>业务洞察</h2>
+        <div class="insight-grid">
+            <div class="insight-card">
+                <h3>📈 销售表现</h3>
+                <ul>
+                    {% for insight in result.insights.sales_insights %}
+                    <li>{{ insight }}</li>
+                    {% else %}
+                    <li class="insight-empty">暂无销售表现洞察</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            <div class="insight-card">
+                <h3>📦 商品分析</h3>
+                <ul>
+                    {% for insight in result.insights.product_insights %}
+                    <li>{{ insight }}</li>
+                    {% else %}
+                    <li class="insight-empty">暂无突出商品洞察</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            <div class="insight-card">
+                <h3>⚠️ 数据提醒</h3>
+                <ul>
+                    {% for warning in result.insights.data_warnings %}
+                    <li>{{ warning }}</li>
+                    {% else %}
+                    <li class="insight-empty">暂无数据提醒</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <section class="quality-section" aria-label="数据质量分析">
+        <h2>数据质量分析</h2>
+        <div class="quality-grid">
+            <div class="quality-card">
+                <div class="kpi-label">数据行数</div>
+                <div class="quality-value">{{ result.data_quality.rows }}</div>
+            </div>
+            <div class="quality-card">
+                <div class="kpi-label">字段数量</div>
+                <div class="quality-value">{{ result.data_quality.columns }}</div>
+            </div>
+            <div class="quality-card">
+                <div class="kpi-label">缺失值</div>
+                <div class="quality-value">{{ result.data_quality.missing_values }}</div>
+            </div>
+            <div class="quality-card">
+                <div class="kpi-label">空订单编号</div>
+                <div class="quality-value">{{ result.empty_order_ids }}</div>
+            </div>
+            <div class="quality-card">
+                <div class="kpi-label">重复行</div>
+                <div class="quality-value">{{ result.data_quality.duplicate_rows }}</div>
+            </div>
+            <div class="quality-card">
+                <div class="kpi-label">数据完整率</div>
+                <div class="quality-value">{{ "%.2f"|format(result.data_quality.completeness * 100) }}%</div>
+            </div>
+            <div class="quality-card">
+                <div class="kpi-label">质量评分</div>
+                <div class="quality-value">{{ "%.2f"|format(result.data_quality.quality_score) }} / 100</div>
+            </div>
+        </div>
+    </section>
+
+    <section class="chart-grid" aria-label="可视化销售分析">
+        <div class="chart-card wide"><div id="sales-trend-chart"></div></div>
+        <div class="chart-card"><div id="product-top10-chart"></div></div>
+        <div class="chart-card"><div id="product-share-chart"></div></div>
+    </section>
 
     <h3>销售数据预览（前5行）</h3>
 
@@ -107,5 +262,35 @@
 {% endif %}
 
     </div>
+{% if result %}
+    <script src="https://cdn.plot.ly/plotly-3.1.0.min.js"></script>
+    <script>
+        const chartData = {
+            salesTrend: {{ result.charts.sales_trend|tojson }},
+            productTop10: {{ result.charts.product_top10|tojson }},
+            productShare: {{ result.charts.product_share|tojson }}
+        };
+        const responsiveConfig = {responsive: true, displaylogo: false};
+
+        Plotly.newPlot(
+            "sales-trend-chart",
+            chartData.salesTrend.data,
+            chartData.salesTrend.layout,
+            responsiveConfig
+        );
+        Plotly.newPlot(
+            "product-top10-chart",
+            chartData.productTop10.data,
+            chartData.productTop10.layout,
+            responsiveConfig
+        );
+        Plotly.newPlot(
+            "product-share-chart",
+            chartData.productShare.data,
+            chartData.productShare.layout,
+            responsiveConfig
+        );
+    </script>
+{% endif %}
 </body>
 </html>

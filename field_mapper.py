@@ -1,3 +1,5 @@
+"""Map supported source column aliases to canonical sales field names."""
+
 FIELD_ALIASES = {
     "order_id": ("订单编号", "订单号", "order", "id"),
     "quantity": ("数量", "销售数量", "购买数量", "qty"),
@@ -12,7 +14,7 @@ def _normalize_column(column):
 
 
 def map_fields(columns):
-    """Map source column names to standard fields, or return missing fields."""
+    """Return canonical-to-source mappings, or missing canonical fields."""
     columns_by_normalized_name = {}
     for column in columns:
         normalized = _normalize_column(column)

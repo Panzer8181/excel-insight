@@ -1,9 +1,17 @@
-import pandas as pd
+"""Read, normalize, and validate uploaded sales workbooks."""
+
 import logging
+from pathlib import Path
+
+import pandas as pd
+
 from field_mapper import map_fields
 
+LOG_DIR = Path(__file__).resolve().parent / "logs"
+LOG_DIR.mkdir(parents=True, exist_ok=True)
+
 logging.basicConfig(
-    filename="logs/app.log",
+    filename=str(LOG_DIR / "app.log"),
     level=logging.INFO,
     format="%(asctime)s - %(levelname)s - %(message)s",
     encoding="utf-8"
@@ -24,7 +32,9 @@ REQUIRED_COLUMNS = [
     "unit_price"
 ]
 
+
 def load_sales_data(file_path):
+    """Read an Excel workbook, map supported aliases, and validate sales data."""
     df = pd.read_excel(file_path)
 
     if df.empty:
@@ -32,7 +42,7 @@ def load_sales_data(file_path):
 
     field_mapping = map_fields(df.columns)
     if isinstance(field_mapping, list):
-        missing_columns = field_mapping.copy()
+        missing_columns = list(field_mapping)
         missing_columns.extend(
             col for col in ("order_date", "product")
             if col not in df.columns
@@ -54,29 +64,26 @@ def load_sales_data(file_path):
             f"缺少必要字段: {missing_columns}"
         )
 
-    # 检查数量是否为空
+    # Keep row indexes in the structured error so callers can identify bad rows.
     if df["quantity"].isnull().any():
-       error_rows = df[df["quantity"].isnull()]
-       logger.error("quantity字段存在空值")
-       raise DataValidationError({
-       "status": "failed",
-       "error_code": "EMPTY_QUANTITY",
-       "message": "quantity字段存在空值",
-       "rows": error_rows.index.tolist()
-       })
+        error_rows = df[df["quantity"].isnull()]
+        logger.error("quantity字段存在空值")
+        raise DataValidationError({
+            "status": "failed",
+            "error_code": "EMPTY_QUANTITY",
+            "message": "quantity字段存在空值",
+            "rows": error_rows.index.tolist()
+        })
 
-
-    # 检查数量是否为数字
+    # Validate numeric types before the web layer calculates sales_amount.
     if not pd.api.types.is_numeric_dtype(df["quantity"]):
         logger.error("quantity字段不是数字")
         raise DataValidationError("quantity字段必须是数字")
 
-    # 检查价格是否为空
     if df["unit_price"].isnull().any():
         logger.error("unit_price字段存在空值")
         raise DataValidationError("unit_price字段存在空值")
 
-    # 检查价格是否数字
     if not pd.api.types.is_numeric_dtype(df["unit_price"]):
         logger.error("unit_price字段不是数字")
         raise DataValidationError("unit_price字段必须是数字")

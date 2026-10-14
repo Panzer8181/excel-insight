@@ -1,15 +1,43 @@
+"""Flask web workflow for uploading and analyzing sales workbooks."""
 
-from flask import Flask, render_template, request
-from data_processor import DataValidationError, load_sales_data
+from collections import OrderedDict
+from io import BytesIO
+import secrets
+import threading
 import zipfile
+
+from flask import Flask, abort, render_template, request, send_file
+
+from business_insight import generate_business_insights
+from data_processor import DataValidationError, load_sales_data
+from data_quality import analyze_data_quality
+from order_metrics import count_unique_order_ids
+from report_export import build_analysis_report
+from visualization import build_sales_visualizations
 
 app = Flask(__name__)
 
 # 限制上传请求最大为5MB
 app.config["MAX_CONTENT_LENGTH"] = 5 * 1024 * 1024
+MAX_XLSX_ARCHIVE_ENTRIES = 10_000
+MAX_XLSX_UNCOMPRESSED_BYTES = 50 * 1024 * 1024
+MAX_CACHED_REPORTS = 8
+_REPORT_CACHE = OrderedDict()
+_REPORT_CACHE_LOCK = threading.Lock()
+
+
+def _cache_report(report_content):
+    """Keep a bounded set of in-memory reports for the download links."""
+    report_id = secrets.token_urlsafe(24)
+    with _REPORT_CACHE_LOCK:
+        _REPORT_CACHE[report_id] = report_content
+        while len(_REPORT_CACHE) > MAX_CACHED_REPORTS:
+            _REPORT_CACHE.popitem(last=False)
+    return report_id
 
 
 def is_valid_xlsx_structure(file_stream):
+    """Check that an uploaded stream is a ZIP-based XLSX workbook."""
     try:
         file_stream.seek(0)
 
@@ -21,7 +49,13 @@ def is_valid_xlsx_structure(file_stream):
 
         # 第二层：检查Excel必需的内部结构
         with zipfile.ZipFile(file_stream) as z:
-            file_names = set(z.namelist())
+            entries = z.infolist()
+            if len(entries) > MAX_XLSX_ARCHIVE_ENTRIES:
+                return False
+            if sum(entry.file_size for entry in entries) > MAX_XLSX_UNCOMPRESSED_BYTES:
+                return False
+
+            file_names = {entry.filename for entry in entries}
 
             required_files = {
                 "[Content_Types].xml",
@@ -58,27 +92,36 @@ def index():
                 else:
                     file.stream.seek(0)
 
-                    # 复用之前写好的数据读取与校验函数
                     df = load_sales_data(file)
+                    data_quality = analyze_data_quality(df)
 
-                    # 计算销售额
+                    # 基于标准化字段计算销售额，供指标和图表复用。
                     df["sales_amount"] = (
                         df["quantity"] * df["unit_price"]
                     )
+                    insights = generate_business_insights(df)
 
-                    orders = len(df)
+                    orders, empty_order_ids = count_unique_order_ids(df["order_id"])
                     total_sales = float(df["sales_amount"].sum())
 
-                    result = {
+                    analysis_result = {
                         "orders": orders,
+                        "row_count": len(df),
+                        "empty_order_ids": empty_order_ids,
                         "total_sales": total_sales,
                         "average_order_sales": (
                             round(total_sales / orders, 2)
                             if orders
                             else 0.0
                         ),
+                        "data_quality": data_quality,
+                        "insights": insights,
+                        "charts": build_sales_visualizations(df),
                         "preview": df.head(5).to_dict(orient="records")
                     }
+                    report_content = build_analysis_report(analysis_result)
+                    analysis_result["report_id"] = _cache_report(report_content)
+                    result = analysis_result
 
             except DataValidationError as e:
                 detail = e.args[0]
@@ -97,6 +140,21 @@ def index():
         "index.html",
         result=result,
         error=error
+    )
+
+
+@app.route("/download-report/<report_id>", methods=["GET"])
+def download_report(report_id):
+    with _REPORT_CACHE_LOCK:
+        report_content = _REPORT_CACHE.get(report_id)
+    if report_content is None:
+        abort(404)
+
+    return send_file(
+        BytesIO(report_content),
+        as_attachment=True,
+        download_name="excel_insight_analysis_report.docx",
+        mimetype="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     )
 
 
