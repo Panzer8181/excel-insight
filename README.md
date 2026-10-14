@@ -1,6 +1,6 @@
 # Excel Insight V1.0
 
-Excel Insight V1.0 是一个面向销售数据的本地 Web 分析工具。用户上传 `.xlsx` 文件后，应用检查文件结构和必要字段，映射有限范围内的中英文列名，计算销售指标、数据质量与业务洞察，并在网页上展示 Plotly 图表和前 5 行数据；用户可下载包含分析结论、关键数据和图表的 Word 报告。
+Excel Insight V1.0 是一个面向销售数据的本地 Web 分析工具。用户上传 `.xlsx` 文件后，应用检查文件结构和必要字段，映射有限范围内的中英文列名，计算销售指标、数据质量与业务洞察，并在网页上展示 Plotly 图表和可滚动查看的全部数据明细；用户可下载包含分析结论、关键数据和图表的 Word 报告。
 
 ## 项目背景
 
@@ -16,7 +16,7 @@ Excel Insight V1.0 是一个面向销售数据的本地 Web 分析工具。用�
 - 计算缺失单元格、完整率、完整重复行和质量评分。
 - 生成日期销售额峰值、销售额占比高于 50% 的商品、缺失值和重复行提醒。
 - 使用 Plotly 展示每日销售趋势、每日非空唯一订单数、商品销售额 Top10、商品销售占比及商品数量标注。
-- 展示标准化字段的前 5 行预览。
+- 在固定高度、支持上下和左右滚动的表格区域展示全部标准化数据行，表头滚动时保持可见。
 - 下载 Word 分析报告，包含基于数据的结论、核心 KPI、每日趋势与商品汇总表、数据质量说明及三张图表。
 - 将业务校验提示与未知内部异常分开处理；未知异常写入服务端日志，网页仅返回通用提示。
 
@@ -83,7 +83,7 @@ flowchart TD
     I --> L
     J --> L
     K --> M[内存缓存报告]
-    L --> N[网页展示 KPI、提醒、图表、前 5 行和下载按钮]
+    L --> N[网页展示 KPI、提醒、图表、全量可滚动数据明细和下载按钮]
     N --> O[下载 Word 分析报告]
 ```
 
@@ -101,7 +101,7 @@ excel-insight/
 ├── report_export.py          # 用网页分析结果生成 DOCX 结论、表格和图表
 ├── create_test_data.py       # 生成五类确定性的模拟 XLSX 数据
 ├── requirements.txt          # 运行与测试依赖
-├── templates/index.html      # 上传、KPI、洞察、质量、图表和预览
+├── templates/index.html      # 上传、KPI、洞察、质量、图表和全量可滚动数据表
 ├── tests/                    # 单元及 Flask 工作流测试
 ├── data/demo/                # 五类虚构演示工作簿
 ├── TEST_REPORT.md            # 本次审查与测试结果
@@ -123,7 +123,7 @@ python app.py
 1. 在项目根目录运行 `python -m pip install -r requirements.txt` 安装依赖。
 2. 运行 `python create_test_data.py` 生成五类虚构工作簿到 `data/demo/`。
 3. 运行 `python app.py`，然后访问 <http://127.0.0.1:5001>。
-4. 先上传 `data/demo/standard_sales.xlsx`，查看 KPI、业务洞察、数据质量、三张交互图和前 5 行预览，再点击“下载 Word 分析报告”。
+4. 先上传 `data/demo/standard_sales.xlsx`，查看 KPI、业务洞察、数据质量和三张交互图；在可滚动表格中查看全部记录，再点击“下载 Word 分析报告”。
 5. 可继续试用 `mapped_fields_sales.xlsx`、`low_quality_sales.xlsx`、`invalid_type_sales.xlsx` 和 `invalid_fields_sales.xlsx`，观察字段映射、质量提醒及校验错误反馈。
 
 演示工作簿只含虚构销售记录，可重复生成。标准样例的验收结果为 3 个唯一订单、总销售额 7,100.00 元、平均订单金额 2,366.67 元。
@@ -136,11 +136,11 @@ python app.py
 python -m pytest -q -p no:cacheprovider --basetemp "$env:TEMP\excel-insight-pytest-v1"
 ```
 
-V1.0 最近一次完整回归为 **42 项通过，0 项失败**。测试覆盖字段映射、唯一订单统计、每日趋势订单数、销售指标、质量评分、洞察生成、图表数据、XLSX 上传结构和大小限制、五类 Excel 工作流、Word 报告打开与网页指标一致性、报告内图表和结论、错误页面反馈及异常信息保护。详细结果和已知限制见 [TEST_REPORT.md](TEST_REPORT.md)。
+V1.0 最近一次完整回归为 **42 项通过，0 项失败**。该结果是在全量可滚动数据表改动之前取得；本次页面更新尚未重新运行完整测试。之前的测试覆盖字段映射、唯一订单统计、每日趋势订单数、销售指标、质量评分、洞察生成、图表数据、XLSX 上传结构和大小限制、五类 Excel 工作流、Word 报告打开与网页指标一致性、报告内图表和结论、错误页面反馈及异常信息保护。详细结果和已知限制见 [TEST_REPORT.md](TEST_REPORT.md)。
 
 ## 使用截图
 
-当前仓库尚未归档页面截图。作品集截图建议保存到 `docs/screenshots/analysis-result.jpg`，展示使用标准演示数据得到的 KPI、业务洞察、质量分析、图表和预览；不要把包含真实客户数据的工作簿或截图加入项目。
+当前仓库尚未归档页面截图。作品集截图建议保存到 `docs/screenshots/analysis-result.jpg`，展示使用标准演示数据得到的 KPI、业务洞察、质量分析、图表和可滚动的完整数据表；不要把包含真实客户数据的工作簿或截图加入项目。
 
 ## 已知风险和后续事项
 

@@ -72,7 +72,7 @@ def test_standard_and_mapped_workbooks_show_consistent_results(
     assert "sales-trend-chart" in html
     assert "product-top10-chart" in html
     assert "product-share-chart" in html
-    assert "销售数据预览（前5行）" in html
+    assert "销售数据明细（共" in html
 
 
 def test_low_quality_workbook_reports_quality_and_business_warnings(tmp_path):

@@ -117,7 +117,7 @@ def index():
                         "data_quality": data_quality,
                         "insights": insights,
                         "charts": build_sales_visualizations(df),
-                        "preview": df.head(5).to_dict(orient="records")
+                        "table_rows": df.to_dict(orient="records")
                     }
                     report_content = build_analysis_report(analysis_result)
                     analysis_result["report_id"] = _cache_report(report_content)

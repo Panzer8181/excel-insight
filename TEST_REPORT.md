@@ -2,7 +2,7 @@
 
 - 审查日期：2026-10-14
 - 环境：Python 3.13.9、Flask 3.1.2、Pandas 2.3.3、OpenPyXL 3.1.5、Plotly 6.3.0、python-docx 1.2.0、Matplotlib 3.10.6、Pillow 12.0.0、pytest 8.4.2
-- 范围：上传路由、XLSX 读取与校验、字段映射、KPI、数据质量、业务洞察、Plotly 图表、Word 报告、页面预览、依赖、文档和测试。
+- 范围：上传路由、XLSX 读取与校验、字段映射、KPI、数据质量、业务洞察、Plotly 图表、Word 报告、页面数据表、依赖、文档和测试。
 
 ## 当前功能核查
 
@@ -16,7 +16,7 @@
 | 数据质量 | 已实现 | 计算缺失单元格数、空/空白订单编号数、完整重复行数、完整率和质量评分；仅当基础字段校验通过后显示。 |
 | 业务洞察 | 已实现 | 计算日期销售额峰值、销售额占比超过 50% 的商品及缺失/重复提醒。 |
 | 可视化 | 已实现 | 趋势折线、每日非空唯一订单数、商品 Top10 柱状图、销售占比饼图；商品数量标注以整数格式显示。 |
-| 页面预览 | 已实现 | 成功页展示 KPI、质量指标、洞察、三张图和前 5 行。 |
+| 页面数据表 | 已实现 | 成功页展示全部标准化数据行；表格区域支持上下和左右滚动，表头在滚动时保持可见。 |
 | 异常保护 | 已实现 | 业务校验错误保留中文提示；普通 `ValueError` 和其他异常走通用页面提示，异常详情不直接回显。 |
 | 报告文件导出 | 已实现 | 成功页下载 Word 文档，含数据结论、与网页一致的 KPI、每日和商品汇总表、质量说明及三张静态图；测试打开文档并核对指标与网页一致。 |
 
@@ -37,7 +37,7 @@
 - `.gitignore` 已覆盖 `.venv/`、`venv/`、Python 字节码缓存、pytest 缓存、`logs/`、`*.log`、`.env` / `.env.*`（保留 `.env.example`）和 `.vscode/`。通过 `git check-ignore` 验证了虚拟环境、缓存、日志和本地环境文件规则生效。
 - 当前规则没有覆盖通用临时目录/文件以及证书密钥扩展名；本次 Git 状态没有列出这类待提交文件。根据此前明确的约束，本轮只检查 `.gitignore`，没有修改它。
 - `run.py` 已删除且应用代码、依赖说明及启动文档均无其引用；本机以 `python app.py` 启动后，浏览器成功完成标准演示文件的真实上传和分析流程。
-- 已用 `data/demo/standard_sales.xlsx` 在本地页面核对 KPI、洞察、质量卡片、Plotly 图表及预览。浏览器截图已在验收会话中实际生成，但本环境的截图工具只提供会话预览，未能保存为仓库图片文件；README 如需内嵌截图，仍需补入 `docs/screenshots/analysis-result.jpg`。
+- V1.0 阶段曾用 `data/demo/standard_sales.xlsx` 在本地页面核对 KPI、洞察、质量卡片、Plotly 图表及当时的前 5 行预览。浏览器截图已在验收会话中实际生成，但本环境的截图工具只提供会话预览，未能保存为仓库图片文件；README 如需内嵌截图，仍需补入 `docs/screenshots/analysis-result.jpg`。
 
 ## Excel 样例及验证矩阵
 
@@ -45,7 +45,7 @@
 
 | 样例 | 验证内容 | 结果 |
 | --- | --- | --- |
-| `standard_sales.xlsx` | 3 笔记录、总销售额 7,100 元、平均订单金额 2,366.67 元、页面 KPI/图表/预览 | 通过 |
+| `standard_sales.xlsx` | 3 笔记录、总销售额 7,100 元、平均订单金额 2,366.67 元、V1.0 页面 KPI/图表/前 5 行预览 | 通过 |
 | `mapped_fields_sales.xlsx` | 中文订单号、购买数量、成交价映射；总销售额 340 元、平均 170 元 | 通过 |
 | `low_quality_sales.xlsx` | 1 个缺失值、1 条完整重复行；完整率 93.33%、质量分 60.00，页面同时显示提醒 | 通过 |
 | `invalid_type_sales.xlsx` | 数量列含非数值文本，页面保留 `quantity字段必须是数字` 提示且不显示成功结果 | 通过 |
@@ -57,13 +57,13 @@
 
 ## 测试结果
 
-完整测试命令：
+最近一次完整测试命令（在全量可滚动数据表更新之前）：
 
 ```powershell
 python -m pytest -q -p no:cacheprovider --basetemp "$env:TEMP\excel-insight-pytest-v1"
 ```
 
-结果：**42 passed，0 failed，0 errors**（4.97 秒）；`python -m compileall -q app.py data_processor.py field_mapper.py data_quality.py business_insight.py order_metrics.py visualization.py report_export.py create_test_data.py` 通过；`git diff --check` 通过。
+结果：**42 passed，0 failed，0 errors**（4.97 秒）；当时的 `python -m compileall ...` 和 `git diff --check` 均通过。之后将结果页从前 5 行预览改为全量可滚动数据表，并更新对应页面标题断言；这次表格改动尚未重新运行完整测试，不能据此声称当前代码已通过最新回归。
 
 当前托管执行环境的默认 pytest 临时目录和项目 `.pytest_cache` 写入受限，因此在项目外的可写临时目录运行，并关闭 pytest 缓存插件。最初不带临时目录参数的运行出现 5 个 fixture 初始化权限错误；另外暴露了 2 个真实图表问题。使用可写临时目录并完成图表、报告和订单统计修复后，完整的 42 项测试全部通过。
 
